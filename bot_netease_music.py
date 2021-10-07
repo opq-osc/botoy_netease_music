@@ -6,12 +6,13 @@ import binascii
 import json
 
 import httpx
+from botoy import logger
 from botoy.decorators import ignore_botself, startswith
 from botoy.session import SessionHandler, ctx, session
 from Crypto.Cipher import AES
 
 handler_music = SessionHandler(
-    ignore_botself, startswith("点歌"), expiration=20
+    ignore_botself, startswith("点歌"), expiration=30
 ).receive_group_msg()
 
 
@@ -86,28 +87,29 @@ def build_msg(music) -> str:
 
 @handler_music.handle
 def _():
-    keyword = ctx.Content[2:]
+    keyword = ctx.Content[2:].strip()
     if not keyword:
         keyword = session.want(
-            "music_name", "请发送歌曲关键词? (发送退出可以退出点歌)", timeout=30, default="退出"
+            "music_name", "请发送歌曲关键词 (发送退出可以退出点歌)", timeout=20, default="退出"
         )
         if not keyword or keyword == "退出":
+            session.send_text("已退出")
             handler_music.finish()
 
     data = netease_search(keyword)
     if not data:
         session.send_text("未获取到歌曲信息")
         handler_music.finish()
-
+    logger.success(f"{ctx.FromGroupId};点歌: {keyword}")
     items = ["退出点歌"]
     for music in data["songs"]:
         items.append(f"{music['name']} {get_singer(music)}-{music['al']['name']}")
 
-    if ret := session.choose(items):
-        if (idx := ret[1]) != 0:
+    if ret := session.choose(items, retry_times=3, timeout=20):
+        if ret[1] != 0:
             session.action.sendGroupJson(
                 ctx.FromGroupId,
-                build_msg(data["songs"][idx]),
+                build_msg(data["songs"][ret[1]]),
             )
 
     handler_music.finish()
