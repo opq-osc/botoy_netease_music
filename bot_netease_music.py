@@ -42,7 +42,14 @@ def netease_search(keyword):
     }
     data = {"eparams": NeteaseApi.encode_netease_data(eparams)}
 
-    res_data = httpx.post("http://music.163.com/api/linux/forward", data=data)
+    res_data = httpx.post(
+        "http://music.163.com/api/linux/forward",
+        data=data,
+        headers={
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.71 Safari/537.36 Edg/94.0.992.38",
+            "referer": "http://music.163.com/"
+        }
+    )
     if res_data.status_code == 200:
         data_finish = res_data.json()
         if data_finish["code"] == 200:
@@ -100,13 +107,13 @@ def _():
     if not data:
         session.send_text("未获取到歌曲信息")
         handler_music.finish()
-    logger.success(f"{ctx.FromGroupId};点歌: {keyword}")
+    logger.success(f"群:{ctx.FromGroupId}; 点歌:{keyword}")
     items = ["退出点歌"]
     for music in data["songs"]:
         items.append(f"{music['name']} {get_singer(music)}-{music['al']['name']}")
 
-    if ret := session.choose(items, retry_times=3, timeout=20):
-        if ret[1] != 0:
+    if ret := session.choose(items, always_prompt=False, retry_times=3):
+        if ret[1] >= 0:
             session.action.sendGroupJson(
                 ctx.FromGroupId,
                 build_msg(data["songs"][ret[1] - 1]),
