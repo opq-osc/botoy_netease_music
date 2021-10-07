@@ -1,22 +1,17 @@
+"""网易云点歌
+发送 点歌
+发送 点歌+歌名
+"""
 import binascii
 import json
-import re
-import time
 
 import httpx
-from Crypto.Cipher import AES
-from botoy import logger
-from botoy.action import Action
 from botoy.decorators import ignore_botself, startswith
-from botoy.session import SessionHandler, session
-
-__doc__ = "点歌_网易云"
+from botoy.session import SessionHandler, ctx, session
+from Crypto.Cipher import AES
 
 handler_music = SessionHandler(
-    ignore_botself,
-    startswith('点歌'),
-    single_user=True,
-    expiration=20
+    ignore_botself, startswith("点歌"), expiration=20
 ).receive_group_msg()
 
 
@@ -46,35 +41,22 @@ def netease_search(keyword):
     }
     data = {"eparams": NeteaseApi.encode_netease_data(eparams)}
 
-    res_data = (
-        httpx.post(
-            "http://music.163.com/api/linux/forward", data=data
-        )
-    )
+    res_data = httpx.post("http://music.163.com/api/linux/forward", data=data)
     if res_data.status_code == 200:
         data_finish = res_data.json()
-        if data_finish['code'] == 200:
-            return data_finish['result']
+        if data_finish["code"] == 200:
+            return data_finish["result"]
 
 
-def get_singer(data):
-    return "/".join([singer['name'] for singer in data])
+def get_singer(music):
+    return "/".join([singer["name"] for singer in music["ar"]])
 
 
-def build_music_choice_list(music_data_raw) -> str:
-    music_info = []
-    for music in music_data_raw['songs']:
-        music_info.append(
-            f"[{music_data_raw['songs'].index(music)}].{music['name']}  {get_singer(music['ar'])}-{music['al']['name']}"
-        )
-    return "\r".join(music_info)
-
-
-def build_music_json_msg(music_data) -> str:
-    singer = get_singer(music_data['ar'])
-    music_id = music_data['id']
-    pic_url = music_data['al']['picUrl']
-    title = music_data['name']
+def build_msg(music) -> str:
+    singer = get_singer(music)
+    music_id = music["id"]
+    pic_url = music["al"]["picUrl"]
+    title = music["name"]
     msg_dict = {
         "app": "com.tencent.structmsg",
         "desc": "音乐",
@@ -95,47 +77,40 @@ def build_music_json_msg(music_data) -> str:
                 "source_icon": "",
                 "source_url": "",
                 "tag": "网易云音乐",
-                "title": title
+                "title": title,
             }
-        }
+        },
     }
     return json.dumps(msg_dict)
 
 
 @handler_music.handle
 def _():
-    if info_re := re.match("点歌(.*)", session.ctx.Content):
-        if info_re[1].strip():  # 指定了歌名
-            music_keyword = info_re[1].strip()
-            session.set("music_name", music_keyword)
-        else:
-            music_keyword = session.want("music_name", "请发送歌曲关键词? (发送退出可以退出点歌)", timeout=30, default="退出")
-            if music_keyword == "退出":
-                handler_music.finish()
-    else:
-        handler_music.finish()
-        return
-    logger.info(f'点歌: {music_keyword}')
-    music_data_raw = netease_search(music_keyword)
-    if not music_data_raw:
+    keyword = ctx.Content[2:]
+    if not keyword:
+        keyword = session.want(
+            "music_name", "请发送歌曲关键词? (发送退出可以退出点歌)", timeout=30, default="退出"
+        )
+        if not keyword or keyword == "退出":
+            handler_music.finish()
+
+    data = netease_search(keyword)
+    if not data:
         session.send_text("未获取到歌曲信息")
         handler_music.finish()
-    session.send_text(build_music_choice_list(music_data_raw))
-    time.sleep(1)
-    while music_index := session.want("music_index", "请选择序号", pop=True, default="退出"):
-        if music_index == "退出":
-            handler_music.finish()
-        if music_index.isdigit():
-            if len(music_data_raw['songs']) > int(music_index) >= 0:
-                break
-            else:
-                session.send_text("请输入正确的序号")
-                time.sleep(1)
-                continue
-        else:
-            session.send_text("请输入数字")
-            time.sleep(1)
-            continue
-    music_json_msg = build_music_json_msg(music_data_raw['songs'][int(music_index)])
-    Action(qq=session.ctx.CurrentQQ).sendGroupJson(session.ctx.FromGroupId, music_json_msg)
+
+    items = ["退出点歌"]
+    for music in data["songs"]:
+        name = music["name"]
+        singer = get_singer(music)
+        al = music["al"]["name"]
+        items.append(f"{name} {singer}-{al}")
+
+    if ret := session.choose(items):
+        if (idx := ret[1]) != 0:
+            session.action.sendGroupJson(
+                ctx.FromGroupId,
+                build_msg(data["songs"][idx]),
+            )
+
     handler_music.finish()
