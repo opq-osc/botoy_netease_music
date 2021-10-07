@@ -1,0 +1,3 @@
+botoy
+httpx
+pycryptodome
