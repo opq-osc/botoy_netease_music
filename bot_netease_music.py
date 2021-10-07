@@ -71,7 +71,7 @@ def build_msg(music) -> str:
                 "appid": 100495085,
                 "desc": singer,
                 "jumpUrl": f"https://y.music.163.com/m/song?id={music_id}",
-                "musicUrl": f"http://music.163.com//song//media//outer//url?id={music_id}",
+                "musicUrl": f"http://music.163.com/song/media/outer/url?id={music_id}",
                 "preview": pic_url,
                 "sourceMsgId": "0",
                 "source_icon": "",
