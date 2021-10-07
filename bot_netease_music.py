@@ -109,7 +109,7 @@ def _():
         if ret[1] != 0:
             session.action.sendGroupJson(
                 ctx.FromGroupId,
-                build_msg(data["songs"][ret[1]]),
+                build_msg(data["songs"][ret[1] - 1]),
             )
 
     handler_music.finish()
