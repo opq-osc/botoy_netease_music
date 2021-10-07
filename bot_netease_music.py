@@ -113,10 +113,12 @@ def _():
         items.append(f"{music['name']} {get_singer(music)}-{music['al']['name']}")
 
     if ret := session.choose(items, always_prompt=False, retry_times=3):
-        if ret[1] >= 0:
+        index = ret[1] - 1
+        if index >= 0:
             session.action.sendGroupJson(
                 ctx.FromGroupId,
-                build_msg(data["songs"][ret[1] - 1]),
+                build_msg(data["songs"][index]),
             )
-
+        elif index == -1:
+            session.send_text("已退出")
     handler_music.finish()
