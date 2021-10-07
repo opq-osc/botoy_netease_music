@@ -101,10 +101,7 @@ def _():
 
     items = ["退出点歌"]
     for music in data["songs"]:
-        name = music["name"]
-        singer = get_singer(music)
-        al = music["al"]["name"]
-        items.append(f"{name} {singer}-{al}")
+        items.append(f"{music['name']} {get_singer(music)}-{music['al']['name']}")
 
     if ret := session.choose(items):
         if (idx := ret[1]) != 0:
