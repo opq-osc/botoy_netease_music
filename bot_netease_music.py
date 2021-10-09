@@ -17,7 +17,7 @@ handler_music = SessionHandler(
 
 
 class NeteaseApi:
-    """ Netease music api http://music.163.com """
+    """Netease music api http://music.163.com"""
 
     # https://github.com/0xHJK/music-dl
     @classmethod
@@ -33,7 +33,7 @@ class NeteaseApi:
 
 
 def netease_search(keyword):
-    """ Search song from netease music """
+    """Search song from netease music"""
     number = 10
     eparams = {
         "method": "POST",
@@ -47,8 +47,8 @@ def netease_search(keyword):
         data=data,
         headers={
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.71 Safari/537.36 Edg/94.0.992.38",
-            "referer": "http://music.163.com/"
-        }
+            "referer": "http://music.163.com/",
+        },
     )
     if res_data.status_code == 200:
         data_finish = res_data.json()
@@ -100,25 +100,25 @@ def _():
             "music_name", "请发送歌曲关键词 (发送退出可以退出点歌)", timeout=20, default="退出"
         )
         if not keyword or keyword == "退出":
-            session.send_text("已退出")
-            handler_music.finish()
+            handler_music.finish("已退出")
 
     data = netease_search(keyword)
     if not data:
-        session.send_text("未获取到歌曲信息")
-        handler_music.finish()
+        handler_music.finish("未获取到歌曲信息")
     logger.success(f"群:{ctx.FromGroupId}; 点歌:{keyword}")
+
     items = ["退出点歌"]
     for music in data["songs"]:
         items.append(f"{music['name']} {get_singer(music)}-{music['al']['name']}")
 
     if ret := session.choose(items, always_prompt=False, retry_times=3):
-        index = ret[1] - 1
-        if index >= 0:
+        _, idx = ret
+        if idx == 0:
+            handler_music.finish('已退出')
+        else:
             session.action.sendGroupJson(
                 ctx.FromGroupId,
-                build_msg(data["songs"][index]),
+                build_msg(data["songs"][idx]),
             )
-        elif index == -1:
-            session.send_text("已退出")
+
     handler_music.finish()
