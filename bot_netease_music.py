@@ -113,12 +113,13 @@ def _():
 
     if ret := session.choose(items, always_prompt=False, retry_times=3):
         _, idx = ret
-        if idx == 0:
+        # idx == 0 时为退出选歌
+        if idx <= 0:
             handler_music.finish('已退出')
         else:
             session.action.sendGroupJson(
                 ctx.FromGroupId,
-                build_msg(data["songs"][idx]),
+                build_msg(data["songs"][idx - 1]),
             )
 
     handler_music.finish()
